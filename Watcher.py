@@ -59,42 +59,42 @@ class Parser:
         if beg == "":
             beg = data.records[0].date
         if end == "":
-            len = data.records.__len__()
-            end = data.records[len - 1].date
+            length = data.records.__len__()
+            end = data.records[length - 1].date
 
         sample = Sample()
-        index = 0
         resolution_modifier = int(resolution / 5)
+        index = data.records.__len__() - 1
 
-        while index < data.records.__len__() - resolution_modifier:
-
-            if data.records[index].date >= beg and data.records[index + (resolution_modifier - 1)].date <= end:
+        while index > 0:
+            if data.records[index].date <= end and data.records[index - (resolution_modifier - 1)].date >= beg:
                 new_ticker = data.records[index].ticker
-                new_date = data.records[index + (resolution_modifier - 1)].date
-                new_open = data.records[index].open
+                new_date = data.records[index - (resolution_modifier - 1)].date
+                new_open = data.records[index - (resolution_modifier - 1)].open
 
                 tmp_list = list()
                 for i in range(0, resolution_modifier):
-                    tmp_list.append(data.records[index + i].high)
+                    tmp_list.append(data.records[index - i].high)
                 new_high = max(tmp_list)
 
                 tmp_list.clear()
                 for i in range(0, resolution_modifier):
-                    tmp_list.append(data.records[index + i].low)
+                    tmp_list.append(data.records[index - i].low)
                 new_low = min(tmp_list)
 
-                new_close = data.records[index + resolution_modifier - 1].close
+                new_close = data.records[index].close
 
                 tmp_list.clear()
                 for i in range(0, resolution_modifier):
-                    tmp_list.append(int(data.records[index + i].vol))
+                    tmp_list.append(int(data.records[index - i].vol))
                 new_volume = sum(tmp_list)
 
                 record = Record()
                 record.add(new_ticker, new_date, new_open, new_high, new_low, new_close, str(new_volume))
                 sample.add_record(record)
-            index += 3
 
+            index -= resolution_modifier
+        sample.records.reverse()
         return sample;
 
     @staticmethod
@@ -184,10 +184,11 @@ class Parser:
 def run():
     parser = Parser()
     sample_5m = parser.parse("csv/NASDAQ_AAPL.csv")
-    sample_15m = parser.set_resolution(sample_5m, 15, "201010110915", "201010110955")
+    sample_15m = parser.set_resolution(sample_5m, 15, "201011081425", "201011081645")
     # sample_30m = parser.set_resolution(sample_5m, 30)
     # sample_60m = parser.set_resolution(sample_5m, 60)
 
+    # sample_5m.print()
     sample_15m.print()
     # sample_30m.print()
     # sample_60m.print()
