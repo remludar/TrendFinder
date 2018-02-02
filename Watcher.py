@@ -2,6 +2,7 @@ import csv
 import sys
 import math
 
+
 class Record:
     ticker = ""
     date = ""
@@ -12,8 +13,6 @@ class Record:
     vol = ""
     candle_color = ""
     candle_type = ""
-    candle_top = ""
-    candle_bottom = ""
 
     def add(self, a_ticker, a_date, a_open, a_high, a_low, a_close, a_vol):
         self.ticker = a_ticker
@@ -42,7 +41,9 @@ class Sample:
 
 
 class Parser:
-    def parse(self, a_filepath):
+
+    @staticmethod
+    def parse(a_filepath):
         sample = Sample()
         file_reader = csv.reader(open(a_filepath, newline=''), delimiter=',', quotechar='|')
         for row in file_reader:
@@ -52,75 +53,62 @@ class Parser:
         sample.records.pop(0)
         return sample
 
-    def parse_wo_ticker(self, a_filepath):
+    @staticmethod
+    def set_resolution(data, resolution):
         sample = Sample()
-        file_reader = csv.reader(open(a_filepath, newline=''), delimiter=',', quotechar='|')
-        for row in file_reader:
+        index = 0
+        resolution_modifier = int(resolution / 5)
+        while index < data.records.__len__() - resolution_modifier:
+            new_ticker = data.records[index].ticker
+            new_date = data.records[index + (resolution_modifier - 1)].date
+            new_open = data.records[index].open
+
+            tmp_list = list()
+            for i in range(0, resolution_modifier):
+                tmp_list.append(data.records[index + i].high)
+            new_high = max(tmp_list)
+
+            tmp_list.clear()
+            for i in range(0, resolution_modifier):
+                tmp_list.append(data.records[index + i].low)
+            new_low = min(tmp_list)
+
+            new_close = data.records[index + resolution_modifier - 1].close
+
+            tmp_list.clear()
+            for i in range(0, resolution_modifier):
+                tmp_list.append(int(data.records[index + i].vol))
+            new_volume = sum(tmp_list)
+
             record = Record()
-            record.add("AAPL", row[0], row[1], row[2], row[3], row[4], row[6])
+            record.add(new_ticker, new_date, new_open, new_high, new_low, new_close, str(new_volume))
             sample.add_record(record)
-        sample.records.pop(0)
-        return sample
+            index += 3
 
-    def get_up_trends(self, data):
-        previous_high = 0.0
-        previous_low = 0.0
-        master_list = []
-        trend_row_list = []
-        for row in data.records:
-            if float(row.high) > previous_high and float(row.low) > previous_low:
-                previous_high = float(row.high)
-                previous_low = float(row.low)
-                trend_row_list.append(row)
-            else:
-                if trend_row_list.__len__() > 1:
-                    master_list.append(trend_row_list)
-                previous_high = float(row.high)
-                previous_low = float(row.low)
-                trend_row_list = [row]
-        return master_list
+        return sample;
 
-    def get_down_trends(self, data):
-        previous_high = sys.float_info.max
-        previous_low = sys.float_info.max
-        master_list = []
-        trend_row_list = []
-        for row in data.records:
-            if float(row.high) < previous_high and float(row.low) < previous_low:
-                previous_high = float(row.high)
-                previous_low = float(row.low)
-                trend_row_list.append(row)
-            else:
-                if trend_row_list.__len__() > 1:
-                    master_list.append(trend_row_list)
-                previous_high = float(row.high)
-                previous_low = float(row.low)
-                trend_row_list = [row]
-        return master_list
-
-    def set_candle_data(self, data):
+    @staticmethod
+    def set_candle_data(data):
         for row in data.records:
 
             body_size = math.fabs(float(row.open) - float(row.close))
             upper_shadow = float(row.high) - float(row.close)
             lower_shadow = float(row.open) - float(row.low)
-            range = float(row.high) - float(row.low)
+            full_range = float(row.high) - float(row.low)
 
             # Candle color
             if float(row.open) < float(row.close):
                 row.candle_color = "green"
-                row.candle_top = row.close
-                row.candle_bottom = row.open
             elif float(row.open) > float(row.close):
                 row.candle_color = "red"
-                row.candle_top = row.open
-                row.candle_bottom = row.close
                 upper_shadow = float(row.high) - float(row.open)
                 lower_shadow = float(row.close) - float(row.low)
             elif float(row.open) == float(row.close):
                 row.candle_color = "none"
-                row.candle_top = row.open
-                row.candle_bottom = row.candle_top
+
+            # Don't bother trying to assign a candle_type if the full_range is 0
+            if full_range == 0:
+                continue
 
             # Marubozu
             if (float(row.open) == float(row.low) and float(row.close) == float(row.high)) or\
@@ -129,40 +117,40 @@ class Parser:
 
             # Long Upper Shadow
             if row.candle_color == "red" and\
-               upper_shadow >= 0.66 * range and\
-               lower_shadow <= 0.33 * range and\
+               upper_shadow >= 0.66 * full_range and\
+               lower_shadow <= 0.33 * full_range and\
                float(row.close) != float(row.low):
                 row.candle_type = "longUpperShadow"
 
             # Long Lower Shadow
             if row.candle_color == "green" and\
-               upper_shadow <= 0.33 * range and\
-               lower_shadow >= 0.66 * range and\
+               upper_shadow <= 0.33 * full_range and\
+               lower_shadow >= 0.66 * full_range and\
                float(row.close) != float(row.high):
                 row.candle_type = "longLowerShadow"
 
             # Spinning Top
-            if 0.33 * range >= body_size >= 0.10 * range and\
-                upper_shadow >= 2.5 * body_size and\
-                lower_shadow >= 2.5 * body_size and \
-               math.fabs(upper_shadow / range - lower_shadow / range) < 0.20:
+            if 0.33 * full_range >= body_size >= 0.10 * full_range and\
+               upper_shadow >= 2.5 * body_size and\
+               lower_shadow >= 2.5 * body_size and\
+               math.fabs(upper_shadow / full_range - lower_shadow / full_range) < 0.20:
                 row.candle_type = "spinningTop"
 
             # Doji
-            if 0.10 * range >= body_size:
+            if 0.10 * full_range >= body_size:
                 if upper_shadow == 0:
                     row.candle_type = "dragonflyDoji"
                 if lower_shadow == 0:
                     row.candle_type = "gravestoneDoji"
-                if upper_shadow >= 8 * body_size and \
-                   lower_shadow >= 8 * body_size and \
-                   math.fabs(upper_shadow / range - lower_shadow / range) < 0.20:
+                if upper_shadow >= 8 * body_size and\
+                   lower_shadow >= 8 * body_size and\
+                   math.fabs(upper_shadow / full_range - lower_shadow / full_range) < 0.20:
                     row.candle_type = "longLeggedDoji"
                 else:
                     row.candle_type = "doji"
 
             # Hammer / Hanging Man
-            if 0.33 * range >= body_size >= 0.10 * range and\
+            if 0.33 * full_range >= body_size >= 0.10 * full_range and\
                upper_shadow <= 1 * body_size and\
                lower_shadow >= 3 * body_size:
                 if row.candle_color == "green":
@@ -174,7 +162,7 @@ class Parser:
                 i = 0
 
             # Inverted Hammer / Shooting Star
-            if 0.33 * range >= body_size >= 0.05 * range and\
+            if 0.33 * full_range >= body_size >= 0.05 * full_range and\
                upper_shadow >= 3 * body_size and\
                lower_shadow <= 1 * body_size:
                 if row.candle_color == "green":
@@ -183,43 +171,17 @@ class Parser:
                     row.candle_type = "shootingStar"
 
 
-def print_list(data):
-    for r in data:
-        print("TREND")
-        for i in r:
-            print("ROW: " + str(i))
-
-
-def print_sample(data):
-    for record in data.records:
-        print(record)
-
-
-def run_old_parse():
-    parser = Parser()
-    full_sample = parser.parse("csv/NASDAQ_AAPL.txt")
-    up_trends_list = parser.get_up_trends(full_sample)
-    down_trends_list = parser.get_down_trends(full_sample)
-    parser.set_candle_data(full_sample)
-
-    print("=========UP TRENDS==========")
-    print_list(up_trends_list)
-    print("=========DOWN TRENDS==========")
-    print_list(down_trends_list)
-    print("=========FULL DATA WITH CANDLE INFO===========")
-    for r in full_sample.records:
-        print(r)
-
-
 def run():
     parser = Parser()
-    full_sample = parser.parse_wo_ticker("csv/AAPL.csv")
+    sample_5m = parser.parse("csv/NASDAQ_AAPL.csv")
+    sample_15m = parser.set_resolution(sample_5m, 15)
+    sample_30m = parser.set_resolution(sample_5m, 30)
+    sample_60m = parser.set_resolution(sample_5m, 60)
 
-    parser.set_candle_data(full_sample)
-
-    print_sample(full_sample)
+    sample_15m.print()
+    sample_30m.print()
+    sample_60m.print()
 
 
 if __name__ == '__main__':
-    # run_old_parse()
     run()
