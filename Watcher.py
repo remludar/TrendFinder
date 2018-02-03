@@ -13,6 +13,8 @@ class Record:
     vol = ""
     candle_color = ""
     candle_type = ""
+    sph = False
+    spl = False
 
     def add(self, a_ticker, a_date, a_open, a_high, a_low, a_close, a_vol):
         self.ticker = a_ticker
@@ -25,12 +27,16 @@ class Record:
 
     def __str__(self):
         return self.ticker + "," + self.date + "," + self.open + "," + self.high + "," + self.low + "," + \
-               self.close + "," + self.vol + "," + self.candle_color + "," + self.candle_type
+               self.close + "," + self.vol + "," + self.candle_color + "," + self.candle_type + "," + \
+               str(self.sph) + "," + str(self.spl)
 
 
 class Sample:
+
     def __init__(self):
         self.records = []
+        self.psph = Record
+        self.pspl = Record
 
     def add_record(self, a_record):
         self.records.append(a_record)
@@ -64,38 +70,37 @@ class Parser:
 
         sample = Sample()
         resolution_modifier = int(resolution / 5)
-        index = data.records.__len__() - 1
+        index = 0
 
-        while index > 0:
-            if data.records[index].date <= end and data.records[index - (resolution_modifier - 1)].date >= beg:
+        while index < data.records.__len__() - resolution_modifier:
+            if data.records[index].date >= beg and data.records[index + (resolution_modifier - 1)].date <= end:
                 new_ticker = data.records[index].ticker
-                new_date = data.records[index - (resolution_modifier - 1)].date
-                new_open = data.records[index - (resolution_modifier - 1)].open
+                new_date = data.records[index].date
+                new_open = data.records[index].open
 
                 tmp_list = list()
                 for i in range(0, resolution_modifier):
-                    tmp_list.append(data.records[index - i].high)
+                    tmp_list.append(data.records[index + i].high)
                 new_high = max(tmp_list)
 
                 tmp_list.clear()
                 for i in range(0, resolution_modifier):
-                    tmp_list.append(data.records[index - i].low)
+                    tmp_list.append(data.records[index + i].low)
                 new_low = min(tmp_list)
 
-                new_close = data.records[index].close
+                new_close = data.records[index + (resolution_modifier - 1)].close
 
                 tmp_list.clear()
                 for i in range(0, resolution_modifier):
-                    tmp_list.append(int(data.records[index - i].vol))
+                    tmp_list.append(int(data.records[index + i].vol))
                 new_volume = sum(tmp_list)
 
                 record = Record()
                 record.add(new_ticker, new_date, new_open, new_high, new_low, new_close, str(new_volume))
                 sample.add_record(record)
 
-            index -= resolution_modifier
-        sample.records.reverse()
-        return sample;
+            index += resolution_modifier
+        return sample
 
     @staticmethod
     def set_candle_data(data):
@@ -120,6 +125,7 @@ class Parser:
             if full_range == 0:
                 continue
 
+            # Candle Types
             # Marubozu
             if (float(row.open) == float(row.low) and float(row.close) == float(row.high)) or\
                (float(row.open) == float(row.high) and float(row.close) == float(row.low)):
@@ -180,18 +186,58 @@ class Parser:
                 elif row.candle_color == "red":
                     row.candle_type = "shootingStar"
 
+        # PSPH, PSPL
+        index = 1
+        data.psph = data.records[0]
+        data.pspl = data.records[0]
+        index_of_psph = 0
+        index_of_pspl = 0
+        lh_counter = 0
+        ll_counter = 0
+        while index < data.records.__len__() - 6:
+
+            if data.records[index].high > data.psph.high:
+                data.psph = data.records[index]
+                index_of_psph = index
+                lh_counter = 0
+            elif data.records[index].high < data.psph.high:
+                lh_counter += 1
+
+            if lh_counter == 6:
+                data.records[index_of_psph].sph = True
+                data.psph = data.records[index]
+                lh_counter = 0
+
+            if data.records[index].low < data.pspl.low:
+                data.pspl = data.records[index]
+                index_of_pspl = index
+                ll_counter = 0
+            elif data.records[index].low > data.pspl.low:
+                ll_counter += 1
+
+            if ll_counter == 6:
+                data.records[index_of_pspl].spl = True
+                data.pspl = data.records[index]
+                ll_counter = 0
+
+            index += 1
+
 
 def run():
-    parser = Parser()
-    sample_5m = parser.parse("csv/NASDAQ_AAPL.csv")
-    sample_15m = parser.set_resolution(sample_5m, 15, "201011081425", "201011081645")
-    # sample_30m = parser.set_resolution(sample_5m, 30)
-    # sample_60m = parser.set_resolution(sample_5m, 60)
+    sample_5m = Parser.parse("csv/NASDAQ_AAPL.csv")
+    # sample_15m = Parser.set_resolution(sample_5m, 15)
+    # sample_30m = Parser.set_resolution(sample_5m, 30)
+    sample_60m = Parser.set_resolution(sample_5m, 60)
+
+    # Parser.set_candle_data(sample_5m)
+    # Parser.set_candle_data(sample_15m)
+    # Parser.set_candle_data(sample_30m)
+    Parser.set_candle_data(sample_60m)
 
     # sample_5m.print()
-    sample_15m.print()
+    # sample_15m.print()
     # sample_30m.print()
-    # sample_60m.print()
+    sample_60m.print()
 
 
 if __name__ == '__main__':
