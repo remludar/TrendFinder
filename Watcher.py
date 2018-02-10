@@ -1,5 +1,4 @@
 import csv
-import sys
 import math
 
 
@@ -44,6 +43,12 @@ class Sample:
     def print(self):
         for record in self.records:
             print(record)
+
+    def save(self, filename):
+        f = open('Output/csv/' + filename + '.csv', 'w')
+        for row in self.records:
+            f.write(row.open + ',' + row.high + ',' + row.low + ',' + row.close + '\n')
+        f.close()
 
 
 class Parser:
@@ -225,19 +230,24 @@ class Parser:
 
 def run():
     sample_5m = Parser.parse("csv/NASDAQ_AAPL.csv")
-    # sample_15m = Parser.set_resolution(sample_5m, 15)
-    # sample_30m = Parser.set_resolution(sample_5m, 30)
+    sample_15m = Parser.set_resolution(sample_5m, 15)
+    sample_30m = Parser.set_resolution(sample_5m, 30)
     sample_60m = Parser.set_resolution(sample_5m, 60)
-
-    # Parser.set_candle_data(sample_5m)
-    # Parser.set_candle_data(sample_15m)
-    # Parser.set_candle_data(sample_30m)
+    #
+    Parser.set_candle_data(sample_5m)
+    Parser.set_candle_data(sample_15m)
+    Parser.set_candle_data(sample_30m)
     Parser.set_candle_data(sample_60m)
 
     # sample_5m.print()
     # sample_15m.print()
     # sample_30m.print()
-    sample_60m.print()
+    # sample_60m.print()
+
+    sample_5m.save("NASDAQ_APPL_5m")
+    sample_15m.save("NASDAQ_APPL_15m")
+    sample_30m.save("NASDAQ_APPL_30m")
+    sample_60m.save("NASDAQ_APPL_60m")
 
 
 if __name__ == '__main__':
