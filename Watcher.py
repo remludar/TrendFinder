@@ -46,9 +46,20 @@ class Sample:
 
     def save(self, filename):
         f = open('Output/csv/' + filename + '.csv', 'w')
+        f.write("date,open,high,low,close,volume\n")
         for row in self.records:
-            f.write(row.open + ',' + row.high + ',' + row.low + ',' + row.close + '\n')
+            # if "20101015" in row.date:
+                f.write(row.date + ',' + row.open + ',' + row.high + ',' + row.low + ',' +
+                        row.close + ',' + row.vol + '\n')
         f.close()
+
+    # def save(self, filename):
+    #     f = open('Output/csv/' + filename + '.csv', 'w')
+    #     for row in self.records:
+    #         if "20101015" in row.date:
+    #             f.write(row.date + ',' + row.open + ',' + row.high + ',' + row.low + ',' +
+    #                     row.close + ',' + row.vol + '\n')
+    #     f.close()
 
 
 class Parser:
