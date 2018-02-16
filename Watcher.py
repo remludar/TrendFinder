@@ -15,6 +15,7 @@ class Record:
     sph = False
     spl = False
 
+
     def add(self, a_ticker, a_date, a_open, a_high, a_low, a_close, a_vol):
         self.ticker = a_ticker
         self.date = a_date
@@ -244,13 +245,13 @@ def run():
     sample_15m = Parser.set_resolution(sample_5m, 15)
     sample_30m = Parser.set_resolution(sample_5m, 30)
     sample_60m = Parser.set_resolution(sample_5m, 60)
-    #
+
     Parser.set_candle_data(sample_5m)
     Parser.set_candle_data(sample_15m)
     Parser.set_candle_data(sample_30m)
     Parser.set_candle_data(sample_60m)
 
-    # sample_5m.print()
+    sample_5m.print()
     # sample_15m.print()
     # sample_30m.print()
     # sample_60m.print()
